@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HydroWatch — Smart Water Infrastructure</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+  <!-- Ambient background -->
+  <div class="bg-grid"></div>
+  <div class="bg-orbs">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon"><i class="fa-solid fa-water"></i></div>
+      <div class="logo-text">
+        <span class="logo-main">HydroWatch</span>
+        <span class="logo-sub">Detect. Protect. Conserve.</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">MONITORING</div>
+      <a href="#" class="nav-item active" data-page="dashboard">
+        <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+        <div class="nav-indicator"></div>
+      </a>
+      <a href="#" class="nav-item" data-page="map">
+        <i class="fa-solid fa-map-location-dot"></i><span>Pipeline Map</span>
+      </a>
+      <a href="#" class="nav-item" data-page="alerts">
+        <i class="fa-solid fa-triangle-exclamation"></i><span>Alerts</span>
+        <span class="badge" id="alert-badge">3</span>
+      </a>
+      <div class="nav-section-label">ANALYTICS</div>
+      <a href="#" class="nav-item" data-page="analytics">
+        <i class="fa-solid fa-chart-line"></i><span>Analytics</span>
+      </a>
+      <a href="#" class="nav-item" data-page="incidents">
+        <i class="fa-solid fa-circle-exclamation"></i><span>Incidents</span>
+      </a>
+      <a href="#" class="nav-item" data-page="prediction">
+        <i class="fa-solid fa-brain"></i><span>AI Prediction</span>
+      </a>
+      <div class="nav-section-label">SYSTEM</div>
+      <a href="#" class="nav-item" data-page="monitoring">
+        <i class="fa-solid fa-server"></i><span>System Monitoring</span>
+      </a>
+      <a href="#" class="nav-item" data-page="settings">
+        <i class="fa-solid fa-gear"></i><span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="system-status">
+        <div class="status-dot pulse-green"></div>
+        <span>All Systems Operational</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main-wrapper">
+    <!-- Top Navbar -->
+    <header class="topbar">
+      <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="topbar-title" id="page-title">Dashboard</div>
+
+      <div class="topbar-right">
+
+        <!-- THEME TOGGLE — add this -->
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Light/Dark">
+          <i class="fa-solid fa-moon" id="themeIcon"></i>
+        </button>
+
+
+        <div class="health-indicator">
+          <div class="pulse-ring"></div>
+          <div class="health-dot"></div>
+          <span>Live</span>
+        </div>
+        <div class="topbar-time" id="live-time">--:--:--</div>
+        <div class="topbar-notifications" onclick="showNotifications()">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notif-count" id="notif-count">3</span>
+        </div>
+        <div class="topbar-user">
+          <div class="user-avatar">NR</div>
+          <div class="user-info">
+            <span class="user-name">Nivesh R</span>
+            <span class="user-role">Admin</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE: Dashboard -->
+    <main class="content" id="page-dashboard">
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><i class="fa-solid fa-diagram-project"></i></div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="total-pipelines">0</div>
+            <div class="kpi-label">Pipelines Monitored</div>
+          </div>
+          <div class="kpi-trend up"><i class="fa-solid fa-arrow-trend-up"></i> +2 this week</div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="active-alerts">0</div>
+            <div class="kpi-label">Active Alerts</div>
+          </div>
+          <div class="kpi-trend down"><i class="fa-solid fa-arrow-trend-down"></i> Live count</div>
+        </div>
+        <div class="kpi-card kpi-cyan">
+          <div class="kpi-icon"><i class="fa-solid fa-gauge"></i></div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="avg-pressure">0 <small>PSI</small></div>
+            <div class="kpi-label">Avg. Pressure</div>
+          </div>
+          <div class="kpi-trend up"><i class="fa-solid fa-check"></i> Normal range</div>
+        </div>
+        <div class="kpi-card kpi-orange">
+          <div class="kpi-icon"><i class="fa-solid fa-droplet-slash"></i></div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="water-loss">0 <small>L/hr</small></div>
+            <div class="kpi-label">Est. Water Loss</div>
+          </div>
+          <div class="kpi-trend down"><i class="fa-solid fa-arrow-trend-up"></i> Monitoring</div>
+        </div>
+      </div>
+
+      <!-- ═══ REAL DATA SOURCE INDICATOR BAR ═══ -->
+      <div class="data-source-bar">
+        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;">Live Data
+          Sources:</span>
+        <div class="data-source-item">
+          <i class="fa-solid fa-cloud-sun" style="color:#38bdf8;"></i>
+          <span>Open-Meteo Weather API</span>
+          <span id="badge-weather" style="color:#f59e0b;">🔄 Loading...</span>
+        </div>
+        <div class="data-source-item">
+          <i class="fa-solid fa-database" style="color:#8b5cf6;"></i>
+          <span>data.gov.in / TWAD Board</span>
+          <span id="badge-govdata" style="color:#f59e0b;">🔄 Loading...</span>
+        </div>
+        <div class="data-source-item">
+          <i class="fa-solid fa-water" style="color:#22c55e;"></i>
+          <span>CMWSSB Reservoir Data</span>
+          <span style="color:#38bdf8;">📊 Mar 2025</span>
+        </div>
+        <div class="data-source-item">
+          <i class="fa-solid fa-wave-square" style="color:#f59e0b;"></i>
+          <span>Sensors</span>
+          <span style="color:#f59e0b;">🔄 Simulated (no public IoT API)</span>
+        </div>
+      </div>
+
+      <br>
+
+      <!-- ═══ REAL DATA PANELS ═══ -->
+      <div class="real-data-grid">
+        <!-- Weather Panel (Open-Meteo live) -->
+        <div class="glass-card">
+          <div class="panel-header">
+            <span><i class="fa-solid fa-cloud-sun" style="color:#38bdf8;"></i> Live Weather — TN Districts</span>
+            <span style="font-size:10px;color:var(--text3);">Open-Meteo API</span>
+          </div>
+          <div id="weather-panel-body" style="max-height:200px;overflow-y:auto;">
+            <div class="loading-placeholder">
+              <div class="spinner"></div><span>Fetching weather...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Government Water Stats (data.gov.in) -->
+        <div class="glass-card">
+          <div class="panel-header">
+            <span><i class="fa-solid fa-building-columns" style="color:#8b5cf6;"></i> TN Water Supply Stats</span>
+            <span style="font-size:10px;color:var(--text3);">data.gov.in / TWAD</span>
+          </div>
+          <div id="govdata-panel-body" style="max-height:200px;overflow-y:auto;">
+            <div class="loading-placeholder">
+              <div class="spinner"></div><span>Loading government data...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chennai Reservoir Levels (CMWSSB) -->
+        <div class="glass-card">
+          <div class="panel-header">
+            <span><i class="fa-solid fa-water" style="color:#22c55e;"></i> Chennai Reservoir Levels</span>
+            <span style="font-size:10px;color:var(--text3);">CMWSSB • Mar 2025</span>
+          </div>
+          <div id="reservoir-panel-body" style="max-height:200px;overflow-y:auto;">
+            <div class="loading-placeholder">
+              <div class="spinner"></div><span>Loading reservoir data...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <div class="chart-title"><i class="fa-solid fa-gauge-high"></i> Pressure vs Flow Rate — Live</div>
+            <div class="chart-actions">
+              <button class="chart-btn active" onclick="switchChart('pressure')">Pressure</button>
+              <button class="chart-btn" onclick="switchChart('flow')">Flow Rate</button>
+            </div>
+          </div>
+          <canvas id="pressureChart" height="120"></canvas>
+        </div>
+
+        <div class="chart-card narrow">
+          <div class="chart-header">
+            <div class="chart-title"><i class="fa-solid fa-brain"></i> Leak Probability</div>
+          </div>
+          <canvas id="leakProbChart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Alert + Map row -->
+      <div class="bottom-row">
+        <!-- Active Alerts -->
+        <div class="alerts-panel">
+          <div class="panel-header">
+            <span><i class="fa-solid fa-siren-on"></i> Active Leak Alerts</span>
+            <span class="panel-badge" id="alerts-count">0</span>
+          </div>
+          <div class="alerts-list" id="alerts-list">
+            <div class="loading-placeholder">
+              <div class="spinner"></div>
+              <span>Loading sensor data...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini Map -->
+        <div class="map-panel">
+          <div class="panel-header">
+            <span><i class="fa-solid fa-map"></i> Pipeline Network — Tamil Nadu</span>
+            <span class="map-legend">
+              <span class="leg-dot green"></span>Normal
+              <span class="leg-dot yellow"></span>Warn
+              <span class="leg-dot red"></span>Critical
+            </span>
+          </div>
+          <div id="mini-map"></div>
+        </div>
+      </div>
+
+      <!-- Water Loss Calculator + AI Panel -->
+      <div class="bottom-row2">
+        <div class="calculator-panel glass-card">
+          <div class="panel-header"><span><i class="fa-solid fa-calculator"></i> Water Loss Cost Calculator</span></div>
+          <div class="calc-body">
+            <div class="calc-row">
+              <label>Leak Rate (L/hr)</label>
+              <input type="number" id="calc-rate" value="1000" class="calc-input" />
+            </div>
+            <div class="calc-row">
+              <label>Cost per Liter (₹)</label>
+              <input type="number" id="calc-cost" value="0.5" step="0.1" class="calc-input" />
+            </div>
+            <div class="calc-row">
+              <label>Duration (hrs)</label>
+              <input type="number" id="calc-hours" value="24" class="calc-input" />
+            </div>
+            <button class="calc-btn" onclick="calculateLoss()"><i class="fa-solid fa-calculator"></i> Calculate</button>
+            <div class="calc-result" id="calc-result"></div>
+          </div>
+        </div>
+
+        <div class="ai-panel glass-card">
+          <div class="panel-header"><span><i class="fa-solid fa-microchip"></i> AI Prediction Engine</span></div>
+          <div class="ai-body">
+            <div class="ai-gauge-wrap">
+              <canvas id="gaugeChart" width="200" height="120"></canvas>
+              <div class="gauge-label" id="gauge-label">--</div>
+            </div>
+            <div class="ai-stats">
+              <div class="ai-stat" id="ai-severity-row">
+                <span class="ai-stat-label">Severity</span>
+                <span class="ai-stat-value severity-normal" id="ai-severity">NORMAL</span>
+              </div>
+              <div class="ai-stat">
+                <span class="ai-stat-label">Pipeline</span>
+                <span class="ai-stat-value" id="ai-pipeline">P-101</span>
+              </div>
+              <div class="ai-stat">
+                <span class="ai-stat-label">Water Loss</span>
+                <span class="ai-stat-value" id="ai-loss">--</span>
+              </div>
+              <div class="ai-stat">
+                <span class="ai-stat-label">Action</span>
+                <span class="ai-stat-value action-text" id="ai-action">Monitoring</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident Table -->
+        <div class="incidents-panel glass-card wide-panel">
+          <div class="panel-header">
+            <span><i class="fa-solid fa-table-list"></i> Incident History</span>
+            <input class="table-search" id="incident-search" placeholder="Search..." oninput="filterIncidents()" />
+          </div>
+          <div class="table-wrap">
+            <table class="incidents-table">
+              <thead>
+                <tr>
+                  <th>Pipeline ID</th>
+                  <th>Location</th>
+                  <th>Severity</th>
+                  <th>Detected</th>
+                  <th>Loss (L/hr)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="incidents-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- PAGE: Map -->
+    <main class="content hidden" id="page-map">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-map-location-dot"></i> Pipeline Network Map</h2>
+        <p>Interactive real-time view of all monitored pipelines across Tamil Nadu</p>
+      </div>
+      <div class="full-map-wrap glass-card">
+        <div id="full-map" style="height:600px;border-radius:12px;"></div>
+      </div>
+    </main>
+
+    <!-- PAGE: Alerts -->
+    <main class="content hidden" id="page-alerts">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-triangle-exclamation"></i> Alert Management</h2>
+        <p>All active and historical leak alerts across your pipeline network</p>
+      </div>
+      <div class="alerts-full glass-card" id="alerts-full-list"></div>
+    </main>
+
+    <!-- PAGE: Analytics -->
+    <main class="content hidden" id="page-analytics">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-chart-line"></i> Analytics & Trends</h2>
+      </div>
+      <div class="analytics-grid">
+        <div class="glass-card chart-analytics">
+          <div class="chart-title"><i class="fa-solid fa-temperature-half"></i> Temperature Trend</div>
+          <canvas id="tempChart" height="180"></canvas>
+        </div>
+        <div class="glass-card chart-analytics">
+          <div class="chart-title"><i class="fa-solid fa-wave-square"></i> Vibration Index</div>
+          <canvas id="vibChart" height="180"></canvas>
+        </div>
+        <div class="glass-card chart-analytics">
+          <div class="chart-title"><i class="fa-solid fa-chart-area"></i> Water Loss Trend</div>
+          <canvas id="lossChart" height="180"></canvas>
+        </div>
+        <div class="glass-card chart-analytics">
+          <div class="chart-title"><i class="fa-solid fa-percent"></i> Leak Probability Trend</div>
+          <canvas id="probTrendChart" height="180"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- PAGE: Incidents -->
+    <main class="content hidden" id="page-incidents">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-circle-exclamation"></i> Incident Log</h2>
+      </div>
+      <div class="glass-card" style="padding:20px;">
+        <input class="table-search" id="inc-search2" placeholder="Search incidents..." oninput="filterIncidents2()"
+          style="margin-bottom:16px;" />
+        <div class="table-wrap">
+          <table class="incidents-table">
+            <thead>
+              <tr>
+                <th>Pipeline ID</th>
+                <th>Location</th>
+                <th>Severity</th>
+                <th>Detected</th>
+                <th>Loss (L/hr)</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="incidents-body2"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- PAGE: AI Prediction -->
+    <main class="content hidden" id="page-prediction">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-brain"></i> AI Prediction Engine</h2>
+        <p>Machine learning powered leak detection and predictive maintenance</p>
+      </div>
+      <div class="prediction-grid">
+        <div class="glass-card pred-input">
+          <div class="panel-header"><span>Manual Prediction Input</span></div>
+          <div class="pred-form">
+            <div class="pred-field">
+              <label>Pressure (PSI)</label>
+              <input type="number" id="p-pressure" value="72" class="calc-input" />
+            </div>
+            <div class="pred-field">
+              <label>Flow Rate (L/min)</label>
+              <input type="number" id="p-flow" value="340" class="calc-input" />
+            </div>
+            <div class="pred-field">
+              <label>Temperature (°C)</label>
+              <input type="number" id="p-temp" value="28" class="calc-input" />
+            </div>
+            <div class="pred-field">
+              <label>Vibration Index</label>
+              <input type="number" id="p-vib" value="0.3" step="0.1" class="calc-input" />
+            </div>
+            <div class="pred-field">
+              <label>Pipeline Age (yrs)</label>
+              <input type="number" id="p-age" value="12" class="calc-input" />
+            </div>
+            <button class="calc-btn" onclick="runPrediction()"><i class="fa-solid fa-brain"></i> Run AI
+              Prediction</button>
+          </div>
+        </div>
+        <div class="glass-card pred-result-card">
+          <div class="panel-header"><span>Prediction Result</span></div>
+          <div id="pred-output" class="pred-output">
+            <div class="pred-idle"><i class="fa-solid fa-brain"></i><br />Run a prediction to see results</div>
+          </div>
+        </div>
+        <div class="glass-card pred-risks">
+          <div class="panel-header"><span><i class="fa-solid fa-exclamation-triangle"></i> High Risk Pipelines</span>
+          </div>
+          <div id="risk-list" class="risk-list"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- PAGE: Monitoring -->
+    <main class="content hidden" id="page-monitoring">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-server"></i> System Monitoring</h2>
+        <p>DevOps observability — API latency, container health, resource usage</p>
+      </div>
+      <div class="monitoring-grid">
+        <div class="glass-card mon-card">
+          <div class="mon-label"><i class="fa-solid fa-microchip"></i> CPU Usage</div>
+          <div class="mon-value" id="cpu-val">--</div>
+          <div class="mon-bar">
+            <div class="mon-fill cpu-fill" id="cpu-fill"></div>
+          </div>
+        </div>
+        <div class="glass-card mon-card">
+          <div class="mon-label"><i class="fa-solid fa-memory"></i> Memory Usage</div>
+          <div class="mon-value" id="mem-val">--</div>
+          <div class="mon-bar">
+            <div class="mon-fill mem-fill" id="mem-fill"></div>
+          </div>
+        </div>
+        <div class="glass-card mon-card">
+          <div class="mon-label"><i class="fa-solid fa-bolt"></i> API Latency</div>
+          <div class="mon-value" id="api-lat">--</div>
+          <div class="mon-bar">
+            <div class="mon-fill lat-fill" id="lat-fill"></div>
+          </div>
+        </div>
+        <div class="glass-card mon-card">
+          <div class="mon-label"><i class="fa-solid fa-database"></i> DB Connections</div>
+          <div class="mon-value" id="db-val">--</div>
+          <div class="mon-bar">
+            <div class="mon-fill db-fill" id="db-fill"></div>
+          </div>
+        </div>
+        <div class="glass-card" style="grid-column:1/-1;padding:20px;">
+          <div class="chart-title"><i class="fa-solid fa-chart-line"></i> System Metrics — Real Time</div>
+          <canvas id="sysChart" height="100"></canvas>
+        </div>
+        <!-- <div class="glass-card" style="padding:20px;">
+          <div class="panel-header"><span><i class="fa-brands fa-docker"></i> Container Status</span></div>
+          <div id="containers-list" class="containers-list"></div>
+        </div>
+        <div class="glass-card" style="padding:20px;">
+          <div class="panel-header"><span><i class="fa-solid fa-dharmachakra"></i> K8s Pod Status</span></div>
+          <div id="pods-list" class="pods-list"></div>
+        </div> -->
+      </div>
+    </main>
+
+    <!-- PAGE: Settings -->
+    <main class="content hidden" id="page-settings">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-gear"></i> Settings</h2>
+      </div>
+      <div class="settings-grid">
+        <div class="glass-card" style="padding:24px;">
+          <div class="panel-header"><span>Alert Thresholds</span></div>
+          <div class="settings-form">
+            <div class="setting-row">
+              <label>Warning Probability (%)</label>
+              <input type="range" min="20" max="80" value="40" id="warn-thresh"
+                oninput="document.getElementById('warn-val').textContent=this.value+'%'" />
+              <span id="warn-val">40%</span>
+            </div>
+            <div class="setting-row">
+              <label>Critical Probability (%)</label>
+              <input type="range" min="50" max="99" value="75" id="crit-thresh"
+                oninput="document.getElementById('crit-val').textContent=this.value+'%'" />
+              <span id="crit-val">75%</span>
+            </div>
+            <div class="setting-row">
+              <label>Data Refresh (sec)</label>
+              <input type="range" min="1" max="10" value="3" id="refresh-rate"
+                oninput="document.getElementById('refresh-val').textContent=this.value+'s'" />
+              <span id="refresh-val">3s</span>
+            </div>
+            <button class="calc-btn" onclick="saveSettings()"><i class="fa-solid fa-save"></i> Save Settings</button>
+          </div>
+        </div>
+        <div class="glass-card" style="padding:24px;">
+          <div class="panel-header"><span>Notification Channels</span></div>
+          <div class="settings-form">
+            <div class="setting-row toggle-row">
+              <label>Dashboard Alerts</label>
+              <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+            </div>
+            <div class="setting-row toggle-row">
+              <label>Email Alerts</label>
+              <div class="toggle" onclick="this.classList.toggle('active')"></div>
+            </div>
+            <div class="setting-row toggle-row">
+              <label>Telegram Alerts</label>
+              <div class="toggle" onclick="this.classList.toggle('active')"></div>
+            </div>
+            <div class="setting-row toggle-row">
+              <label>Webhook Integration</label>
+              <div class="toggle" onclick="this.classList.toggle('active')"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

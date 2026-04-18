@@ -1,0 +1,128 @@
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: hydrowatch-db
+    environment:
+      POSTGRES_DB:       hydrowatch
+      POSTGRES_USER:     hydrowatch_user
+      POSTGRES_PASSWORD: hydrowatch_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydrowatch_user -d hydrowatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - hydrowatch-net
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: hydrowatch-api
+    environment:
+      DATABASE_URL:       postgresql://hydrowatch_user:hydrowatch_pass@db:5432/hydrowatch
+      SECRET_KEY:         hydrowatch-secret-key-2024
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID:   ${TELEGRAM_CHAT_ID:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - hydrowatch-net
+
+  # ── Frontend Static Server ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: hydrowatch-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - hydrowatch-net
+
+  # ── ML Training Service ─────────────────────────────────────────────────
+  ml-trainer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ml
+    container_name: hydrowatch-ml
+    volumes:
+      - ../ml/models:/app/models
+    command: python train_model.py
+    networks:
+      - hydrowatch-net
+
+  # ── Prometheus ──────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: hydrowatch-prometheus
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    restart: unless-stopped
+    networks:
+      - hydrowatch-net
+
+  # ── Grafana ─────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: hydrowatch-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: hydrowatch123
+      GF_SECURITY_ADMIN_USER:     admin
+      GF_SERVER_ROOT_URL:         http://localhost:3001
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - hydrowatch-net
+
+  # ── Loki (Log Aggregation) ──────────────────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: hydrowatch-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    networks:
+      - hydrowatch-net
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  hydrowatch-net:
+    driver: bridge

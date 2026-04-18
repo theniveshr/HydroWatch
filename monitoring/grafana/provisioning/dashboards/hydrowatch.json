@@ -1,0 +1,115 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "description": "HydroWatch — Smart Water Infrastructure Monitoring Dashboard",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Pipelines",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "targets": [{ "expr": "count(hydrowatch_pipeline_info)", "legendFormat": "Pipelines" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active Alerts",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "targets": [{ "expr": "count(hydrowatch_leak_probability > 0.4)", "legendFormat": "Alerts" }]
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Avg. Leak Probability",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 1, "unit": "percentunit",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.4 }, { "color": "red", "value": 0.75 }] }
+        }
+      },
+      "targets": [{ "expr": "avg(hydrowatch_leak_probability)", "legendFormat": "Probability" }]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Pipeline Pressure (PSI) — All Zones",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      },
+      "targets": [{ "expr": "hydrowatch_pipeline_pressure_psi", "legendFormat": "{{pipeline_id}}" }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Flow Rate (L/min) — All Zones",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [{ "expr": "hydrowatch_pipeline_flow_rate_lpm", "legendFormat": "{{pipeline_id}}" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Leak Probability Trend",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "min": 0, "max": 1, "unit": "percentunit",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.4 }, { "color": "red", "value": 0.75 }] }
+        }
+      },
+      "targets": [{ "expr": "hydrowatch_leak_probability", "legendFormat": "{{pipeline_id}} — {{zone}}" }]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Current Pipeline Status",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "targets": [{ "expr": "hydrowatch_pipeline_info", "format": "table", "instant": true }]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["hydrowatch", "water", "infrastructure", "tamilnadu"],
+  "templating": {
+    "list": [
+      {
+        "name": "district",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(hydrowatch_pipeline_info, district)",
+        "current": { "text": "All", "value": "$__all" },
+        "includeAll": true
+      }
+    ]
+  },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Kolkata",
+  "title": "HydroWatch Infrastructure Dashboard",
+  "uid": "hydrowatch-main",
+  "version": 1
+}

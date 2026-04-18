@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydrowatch-backend
+  namespace: hydrowatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydrowatch-backend
+  template:
+    metadata:
+      labels:
+        app: hydrowatch-backend
+    spec:
+      containers:
+        - name: hydrowatch-backend
+          image: hydrowatch-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydrowatch-frontend
+  namespace: hydrowatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydrowatch-frontend
+  template:
+    metadata:
+      labels:
+        app: hydrowatch-frontend
+    spec:
+      containers:
+        - name: hydrowatch-frontend
+          image: hydrowatch-frontend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydrowatch-backend
+  namespace: hydrowatch
+spec:
+  selector:
+    app: hydrowatch-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydrowatch-frontend
+  namespace: hydrowatch
+spec:
+  selector:
+    app: hydrowatch-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: LoadBalancer

@@ -1,0 +1,95 @@
+# HydroWatch — Prometheus Alert Rules
+groups:
+  - name: hydrowatch_pipeline_alerts
+    rules:
+      - alert: CriticalLeakDetected
+        expr: hydrowatch_leak_probability > 0.75
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical leak detected on {{ $labels.pipeline_id }}"
+          description: "Pipeline {{ $labels.pipeline_id }} in {{ $labels.zone }} has leak probability {{ $value | humanizePercentage }}"
+
+      - alert: WarningLeakDetected
+        expr: hydrowatch_leak_probability > 0.40
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Warning: Potential leak on {{ $labels.pipeline_id }}"
+          description: "Pipeline {{ $labels.pipeline_id }} shows elevated leak probability of {{ $value | humanizePercentage }}"
+
+      - alert: HighPressure
+        expr: hydrowatch_pipeline_pressure_psi > 90
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High pressure on {{ $labels.pipeline_id }}"
+          description: "Pressure is {{ $value }} PSI (threshold: 90 PSI)"
+
+      - alert: LowFlowRate
+        expr: hydrowatch_pipeline_flow_rate_lpm < 200
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low flow rate on {{ $labels.pipeline_id }}"
+          description: "Flow rate dropped to {{ $value }} L/min"
+
+  - name: hydrowatch_system_alerts
+    rules:
+      - alert: APIDown
+        expr: up{job="hydrowatch-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HydroWatch API is down"
+          description: "The HydroWatch backend API has been unreachable for more than 1 minute"
+
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="hydrowatch-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "99th percentile API latency is {{ $value }}s"
+
+      - alert: DatabaseConnectionsHigh
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connections running high"
+          description: "{{ $value }} active connections (threshold: 80)"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on host"
+          description: "Memory usage is {{ $value | humanize }}%"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_free_bytes / node_filesystem_size_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value | humanize }}%"
